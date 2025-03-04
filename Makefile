@@ -5,7 +5,10 @@ RM = rm -rf
 LIBFT = library/libft/libft.a
 LIBFT_FLAGS = -L./library/libft -lft
 
-SRCS = pipex.c
+SRCS =	pipex.c\
+		free.c\
+		pipex_bonus.c\
+
 OBJS = $(SRCS:.c=.o)
 
 $(NAME): $(LIBFT) $(OBJS)
@@ -14,7 +17,7 @@ $(NAME): $(LIBFT) $(OBJS)
 $(LIBFT):
 	make -C library/libft
 
-%.o: %.c
+.c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(NAME)
