@@ -33,7 +33,7 @@ char	*split_path(char **paths, char *cmd)
 		j++;
 	}
 	free_tab(paths);
-	return (NULL);
+	return (cmd);
 }
 
 char	*find_path(char	**envp, char *cmd)
@@ -107,7 +107,7 @@ void	print_cmds(t_cmd *cmd)
 {
 	while(cmd != NULL)
 	{
-		ft_printf("%s\n", cmd->av[0]);
+		ft_printf("\n%s\n", cmd->av[0]);
 		ft_printf("%s\n", cmd->path);
 		cmd = cmd->next;
 	}
@@ -120,27 +120,67 @@ int	main(int ac, char **av, char **envp)
 	int		is_first = 1;
 	int		infile;
 	int		prev_pipe[2];
+	int		new_pipe[2];
 	int		outfile;
+	int		pid;
 
 	prev_pipe[0] = -1;
 	prev_pipe[1] = -1;
+
 	head = create_cmds(ac, av, envp);
 	current = head;
 	while (current != NULL)
 	{
-		if (is_first)
+		if (current->next)
+			pipe(new_pipe);
+		pid = fork();
+		if (pid == 0)
 		{
-			infile = open("infile.txt", O_RDONLY);
-			dup2(prev_pipe[0], STDIN_FILENO);
-			close(infile);
-			is_first = 0;
+			if (is_first)
+			{
+				infile = open(av[1], O_RDONLY);
+				dup2(infile, STDIN_FILENO);
+				dup2(new_pipe[1], STDOUT_FILENO);
+				close(infile);
+				close(new_pipe[0]);
+				is_first = 0;
+			}
+			else if (current->next)
+			{
+				dup2(prev_pipe[0], STDIN_FILENO);
+				dup2(new_pipe[1], STDOUT_FILENO);
+				close(prev_pipe[1]);
+				close(prev_pipe[0]);
+				close(new_pipe[0]);
+				close(new_pipe[1]);
+			}
+			else
+			{
+				outfile = open(av[ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				dup2(prev_pipe[1], STDIN_FILENO);
+				dup2(outfile, STDOUT_FILENO);
+				close(outfile);
+				close(prev_pipe[0]);
+				close(prev_pipe[1]);
+			}
+			execve(current->path, current->av, envp);
+			perror("execve");
+			exit(1);
 		}
-		if (current->next == NULL)
+		else
 		{
-			outfile = open("outfile.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-			dup2(outfile, STDOUT_FILENO);
+			waitpid(pid, NULL, 0);
+			close(new_pipe[0]);
+			close(new_pipe[1]);
+			close(infile);
 			close(outfile);
 		}
+		if (current->next)
+		{
+			prev_pipe[0] = new_pipe[0];
+			prev_pipe[1] = new_pipe[1];
+		}
+		current = current->next;
 	}
 	print_cmds(head);
 }
