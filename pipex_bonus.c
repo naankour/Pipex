@@ -12,6 +12,18 @@
 
 #include "pipex.h"
 
+// void	free_list(t_cmd *head)
+// {
+// 	t_cmd	*temp;
+
+// 	while (head != NULL)
+// 	{
+// 		temp = head;
+// 		head = head->next;
+// 		free(temp);
+// 	}
+// }
+
 char	*split_path(char **paths, char *cmd)
 {
 	int	j;
@@ -99,17 +111,17 @@ void	print_cmds(t_cmd *cmd)
 void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe)
 {
 	int	infile;
-	int	pid;
 
+	if ( access(av[1], R_OK) != 0)
+	{
+		perror(av[1]);
+		exit(1);
+		// exit(0);
+	}
 	infile = open(av[1], O_RDONLY);
 	if ( infile < 0)
 	{
 		perror(av[1]);
-		exit(1);
-	}
-	if (access(av[1], R_OK) != 0)
-	{
-		printf("Error: infile does not exist.\n");
 		exit(1);
 	}
 	if (pipe(next_pipe) < 0)
@@ -117,22 +129,24 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe)
 		perror("pipe");
 		exit(1);
 	}
-	pid = fork();
-	if (pid < 0)
+	cmd->pid = fork();
+	if (cmd->pid < 0)
 	{
 		perror("fork");
 		exit(1);
 	}
-	else if (pid == 0)
+	else if (cmd->pid == 0)
 	{
 		dup2(infile, STDIN_FILENO);
 		dup2(next_pipe[1], STDOUT_FILENO);
 		close(infile);
 		close(next_pipe[0]);
 		close(next_pipe[1]);
-		execve(cmd->path, cmd->av, envp);
-		perror("execve");
-		exit(1);
+		if (execve(cmd->path, cmd->av, envp) == -1)
+		{
+			perror("execve");
+			exit(127);
+		}
 	}
 	close(infile);
 	close(next_pipe[1]);
@@ -140,20 +154,18 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe)
 
 void	middle_cmd(char **av, char **envp, t_cmd *cmd, int *prev_pipe, int *next_pipe)
 {
-	int	pid;
-
 	if (pipe(next_pipe) < 0)
 	{
 		perror("pipe");
 		exit(1);
 	}
-	pid = fork();
-	if (pid < 0)
+	cmd->pid = fork();
+	if (cmd->pid < 0)
 	{
 		perror("fork");
 		exit(1);
 	}
-	else if (pid == 0)
+	else if (cmd->pid == 0)
 	{
 		dup2(prev_pipe[0], STDIN_FILENO);
 		dup2(next_pipe[1], STDOUT_FILENO);
@@ -161,9 +173,11 @@ void	middle_cmd(char **av, char **envp, t_cmd *cmd, int *prev_pipe, int *next_pi
 		close(prev_pipe[1]);
 		close(next_pipe[1]);
 		close(next_pipe[0]);
-		execve(cmd->path, cmd->av, envp);
-		perror("execve");
-		exit(1);
+		if (execve(cmd->path, cmd->av, envp) == -1)
+		{
+			perror("execve");
+			exit(127);
+		}
 	}
 	close(prev_pipe[0]);
 	close(prev_pipe[1]);
@@ -172,7 +186,6 @@ void	middle_cmd(char **av, char **envp, t_cmd *cmd, int *prev_pipe, int *next_pi
 void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe)
 {
 	int	outfile;
-	int	pid;
 	int	status;
 
 	outfile = open(av[ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -181,32 +194,33 @@ void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe)
 		perror(av[ac - 1]);
 		exit(1);
 	}
-	if (access(av[ac - 1], R_OK) != 0)
+	cmd->pid = fork();
+	if ( access(av[ac - 1], W_OK) != 0)
 	{
-		printf("Error: outfile does not exist.\n");
+		perror(av[ac - 1]);
 		exit(1);
 	}
-	pid = fork();
-	if (pid < 0)
+	if (cmd->pid < 0)
 	{
 		perror("fork");
 		exit(1);
 	}
-	else if (pid == 0)
+	else if (cmd->pid == 0)
 	{
 		dup2(prev_pipe[0], STDIN_FILENO);
 		dup2(outfile, STDOUT_FILENO);
 		close(prev_pipe[0]);
 		close(prev_pipe[1]);
 		close(outfile);
-		execve(cmd->path, cmd->av, envp);
-		perror("execve");
-		exit(1);
+		if (execve(cmd->path, cmd->av, envp) == -1)
+		{
+			perror("execve");
+			exit(127);
+		}
 	}
 	close(outfile);
 	close(prev_pipe[0]);
 	close(prev_pipe[1]);
-	waitpid(pid, &status, 0);
 }
 
 
@@ -217,6 +231,7 @@ int	main(int ac, char **av, char **envp)
 	int	prev_pipe[2];
 	int	next_pipe[2];
 	int status;
+	int	exit_status = 0;
 
 	head = create_cmds(ac, av, envp);
 	current = head;
@@ -234,23 +249,47 @@ int	main(int ac, char **av, char **envp)
 	{
 		middle_cmd(av, envp, current, prev_pipe, next_pipe);
 		prev_pipe[0] = next_pipe[0];
-		next_pipe[1] = next_pipe[1];
+		prev_pipe[1] = next_pipe[1];
 		current = current->next;
 	}
 	if(current->next == NULL)
 		last_cmd(ac, av, envp, current, prev_pipe);
-	while(wait(&status) > 0);
+	current = head;
+	while (current)
+	{
+		if (current->pid > 0)
+		{
+			waitpid(current->pid, &status, 0);
+			if (WIFEXITED(status))
+			{
+				if (current->next == NULL)
+					exit_status = WEXITSTATUS(status);
+			}
+		}
+		current = current->next;
+	}
+	// while (current)
+	// {
+	// 	waitpid(current->pid, &status, 0);
+	// 	if (WIFEXITED(status))
+	// 	{
+	// 		if (current->next == NULL)
+	// 		{
+	// 			return WEXITSTATUS(status);
+	// 		}
+	// 	}
+	// 	current = current->next;
+	// }
 	print_cmds(head);
-	return(0);
 }
 
-int	determine_stqus(int	status)
-{
-	if ((status & 0x7F) == 0)
-		return ((status >> 8) & 0x7F);
-	else
-		return (status & 0x7F);
-}
+// int	determine_stqus(int	status)
+// {
+// 	if ((status & 0x7F) == 0)
+// 		return ((status >> 8) & 0x7F);
+// 	else
+// 		return (status & 0x7F);
+// }
 
 // int	main(int ac, char **av, char **envp)
 // {

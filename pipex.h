@@ -21,6 +21,7 @@ typedef struct s_cmd
 {
 	char			**av;
 	char			*path;
+	pid_t			pid;
 	struct	s_cmd	*next;
 }					t_cmd;
 
