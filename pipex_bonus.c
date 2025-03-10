@@ -12,18 +12,23 @@
 
 #include "pipex.h"
 
-// void	free_list(t_cmd *head)
+// void free_cmds(t_cmd *head)
 // {
-// 	t_cmd	*temp;
+// 	t_cmd *current;
+// 	t_cmd *temp;
 
-// 	while (head != NULL)
+// 	current = head;
+// 	while (current)
 // 	{
-// 		temp = head;
-// 		head = head->next;
-// 		free(temp);
+// 		temp = current->next;
+// 		if (current->path && current->path != current->av[0])
+// 			free(current->path);
+// 		if (current->av)
+// 			free_tab(current->av);
+// 		free(current);
+// 		current = temp;
 // 	}
 // }
-
 char	*split_path(char **paths, char *cmd)
 {
 	int	j;
@@ -86,7 +91,11 @@ t_cmd	*create_cmds(int ac, char **av, char **envp)
 		if (!new_cmd)
 			return (NULL);
 		new_cmd->av = ft_split(av[i], ' ');
-		new_cmd->path = find_path(envp, new_cmd->av[0]);
+		if (new_cmd->av && new_cmd->av[0])
+			new_cmd->path = find_path(envp, new_cmd->av[0]);
+		else
+			new_cmd->path = NULL;
+		// new_cmd->path = find_path(envp, new_cmd->av[0]);
 		new_cmd->next = NULL;
 		if (!head)
 			head = new_cmd;
@@ -112,17 +121,16 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe)
 {
 	int	infile;
 
-	if ( access(av[1], R_OK) != 0)
-	{
-		perror(av[1]);
-		exit(1);
-		// exit(0);
-	}
 	infile = open(av[1], O_RDONLY);
-	if ( infile < 0)
+	if (infile < 0)
 	{
 		perror(av[1]);
-		exit(1);
+		infile = open("/dev/null", O_RDONLY);
+		if (infile < 0)
+		{
+			perror("open /dev/null");
+			exit(1);
+		}
 	}
 	if (pipe(next_pipe) < 0)
 	{
@@ -142,6 +150,11 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe)
 		close(infile);
 		close(next_pipe[0]);
 		close(next_pipe[1]);
+		if (!cmd->path || !cmd->av || !cmd->av[0])
+		{
+			perror("Invalid command");
+			exit(127);
+		}
 		if (execve(cmd->path, cmd->av, envp) == -1)
 		{
 			perror("execve");
@@ -173,6 +186,11 @@ void	middle_cmd(char **av, char **envp, t_cmd *cmd, int *prev_pipe, int *next_pi
 		close(prev_pipe[1]);
 		close(next_pipe[1]);
 		close(next_pipe[0]);
+		if (!cmd->path || !cmd->av || !cmd->av[0])
+		{
+			perror("Invalid command");
+			exit(127);
+		}
 		if (execve(cmd->path, cmd->av, envp) == -1)
 		{
 			perror("execve");
@@ -183,23 +201,24 @@ void	middle_cmd(char **av, char **envp, t_cmd *cmd, int *prev_pipe, int *next_pi
 	close(prev_pipe[1]);
 	close(next_pipe[1]);
 }
+
 void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe)
 {
 	int	outfile;
 	int	status;
 
 	outfile = open(av[ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if ( outfile < 0)
+	if (outfile < 0)
 	{
 		perror(av[ac - 1]);
-		exit(1);
+		cmd->pid = fork();
+		if (cmd->pid == 0)
+			exit(1);
+		close(prev_pipe[0]);
+		close(prev_pipe[1]);
+		return;
 	}
 	cmd->pid = fork();
-	if ( access(av[ac - 1], W_OK) != 0)
-	{
-		perror(av[ac - 1]);
-		exit(1);
-	}
 	if (cmd->pid < 0)
 	{
 		perror("fork");
@@ -212,9 +231,15 @@ void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe)
 		close(prev_pipe[0]);
 		close(prev_pipe[1]);
 		close(outfile);
+		if (!cmd->path || !cmd->av || !cmd->av[0])
+		{
+			perror("Invalid command");
+			exit(127);
+		}
 		if (execve(cmd->path, cmd->av, envp) == -1)
 		{
 			perror("execve");
+
 			exit(127);
 		}
 	}
@@ -223,6 +248,32 @@ void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe)
 	close(prev_pipe[1]);
 }
 
+void free_cmds(t_cmd *head)
+{
+	t_cmd *current;
+	t_cmd *next;
+	int i;
+
+	current = head;
+	while (current)
+	{
+		if (current->av)
+		{
+			i = 0;
+			while (current->av[i])
+			{
+				free(current->av[i]);
+				i++;
+			}
+			free(current->av);
+		}
+		if (current->path)
+			free(current->path);
+		next = current->next;
+		free(current);
+		current = next;
+	}
+}
 
 int	main(int ac, char **av, char **envp)
 {
@@ -231,29 +282,33 @@ int	main(int ac, char **av, char **envp)
 	int	prev_pipe[2];
 	int	next_pipe[2];
 	int status;
-	int	exit_status = 0;
+	int exit_status = 0;
 
-	head = create_cmds(ac, av, envp);
-	current = head;
 	if (ac < 5)
 	{
 		perror("Error : Number of args is invalid\n");
 		exit(1);
 	}
+	head = create_cmds(ac, av, envp);
+	current = head;
 	first_cmd(av, envp, current, next_pipe);
 	current = current->next;
 	prev_pipe[0] = next_pipe[0];
 	prev_pipe[1] = next_pipe[1];
-
-	while(current && current->next)
+	while (current && current->next)
 	{
 		middle_cmd(av, envp, current, prev_pipe, next_pipe);
+		close(prev_pipe[1]);
 		prev_pipe[0] = next_pipe[0];
 		prev_pipe[1] = next_pipe[1];
 		current = current->next;
 	}
-	if(current->next == NULL)
+	if (current->next == NULL)
+	{
 		last_cmd(ac, av, envp, current, prev_pipe);
+		close(prev_pipe[0]);
+		close(prev_pipe[1]);
+	}
 	current = head;
 	while (current)
 	{
@@ -262,107 +317,12 @@ int	main(int ac, char **av, char **envp)
 			waitpid(current->pid, &status, 0);
 			if (WIFEXITED(status))
 			{
-				if (current->next == NULL)
-					exit_status = WEXITSTATUS(status);
+				exit_status = WEXITSTATUS(status);
 			}
 		}
 		current = current->next;
 	}
-	// while (current)
-	// {
-	// 	waitpid(current->pid, &status, 0);
-	// 	if (WIFEXITED(status))
-	// 	{
-	// 		if (current->next == NULL)
-	// 		{
-	// 			return WEXITSTATUS(status);
-	// 		}
-	// 	}
-	// 	current = current->next;
-	// }
-	print_cmds(head);
+	free_cmds(head);
+	exit(exit_status);
 }
 
-// int	determine_stqus(int	status)
-// {
-// 	if ((status & 0x7F) == 0)
-// 		return ((status >> 8) & 0x7F);
-// 	else
-// 		return (status & 0x7F);
-// }
-
-// int	main(int ac, char **av, char **envp)
-// {
-// 	t_cmd	*head;
-// 	t_cmd	*current;
-// 	int		is_first = 1;
-// 	int		infile;
-// 	int		prev_pipe[2];
-// 	int		new_pipe[2];
-// 	int		outfile;
-// 	int		pid;
-
-// 	prev_pipe[0] = -1;
-// 	prev_pipe[1] = -1;
-
-// 	head = create_cmds(ac, av, envp);
-// 	current = head;
-// 	while (current != NULL)
-// 	{
-// 		if (current->next)
-// 			pipe(new_pipe);
-// 		pid = fork();
-// 		if (pid == 0)
-// 		{
-// 			if (is_first)
-// 			{
-// 				printf("erroor1\n");
-// 				infile = open(av[1], O_RDONLY);
-// 				dup2(infile, STDIN_FILENO);
-// 				dup2(new_pipe[1], STDOUT_FILENO);
-// 				close(infile);
-// 				close(new_pipe[0]);
-// 			}
-// 			if (current->next)
-// 			{
-// 				printf("erroor2\n");
-// 				dup2(prev_pipe[0], STDIN_FILENO);
-// 				dup2(new_pipe[1], STDOUT_FILENO);
-// 				close(prev_pipe[1]);
-// 				close(prev_pipe[0]);
-// 				close(new_pipe[0]);
-// 				close(new_pipe[1]);
-// 			}
-// 			if ( current->next == NULL)
-// 			{
-// 				printf("erroor3\n");
-// 				outfile = open(av[ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-// 				dup2(prev_pipe[0], STDIN_FILENO);
-// 				dup2(outfile, STDOUT_FILENO);
-// 				close(prev_pipe[0]);
-// 				close(prev_pipe[1]);
-// 				close(outfile);
-// 			}
-// 			execve(current->path, current->av, envp);
-// 			perror("execve");
-// 			exit(1);
-// 		}
-// 		else
-// 		{
-// 			waitpid(pid, NULL, 0);
-// 			if (is_first)
-// 				is_first = 0;
-// 			close(new_pipe[0]);
-// 			close(new_pipe[1]);
-// 			close(infile);
-// 			close(outfile);
-// 		}
-// 		if (current->next)
-// 		{
-// 			prev_pipe[0] = new_pipe[0];
-// 			prev_pipe[1] = new_pipe[1];
-// 		}
-// 		current = current->next;
-// 	}
-// 	print_cmds(head);
-// }
