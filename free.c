@@ -12,15 +12,14 @@
 
 #include "pipex.h"
 
-void	free_tab(char **tab)
+void free_tab(char **tab)
 {
-	int	i;
+	int i;
 
 	i = 0;
 	while (tab[i])
 	{
-		if (tab[i])
-			free(tab[i]);
+		free(tab[i]);
 		i++;
 	}
 	free(tab);
