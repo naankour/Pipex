@@ -1,24 +1,23 @@
 NAME = pipex
 CC = cc
-FLAGS = -Wall -Wextra -Werror -g3 #-fsanitize=address
+FLAGS = -Wall -Wextra -g3 # -o -fsanitize=address
 RM = rm -rf
 LIBFT = library/libft/libft.a
 LIBFT_FLAGS = -L./library/libft -lft
 
-SRCS =	pipex.c\
-		free.c\
+SRCS =	free.c\
 		pipex_bonus.c\
 
 OBJS = $(SRCS:.c=.o)
 
 $(NAME): $(LIBFT) $(OBJS)
-	$(CC) $(CFLAGS) -o $(NAME) $(OBJS) $(LIBFT_FLAGS)
+	$(CC) $(FLAGS) -o $(NAME) $(OBJS) $(LIBFT_FLAGS)
 
 $(LIBFT):
 	make -C library/libft
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(FLAGS) -c $< -o $@
 
 all: $(NAME)
 

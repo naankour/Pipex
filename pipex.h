@@ -31,6 +31,6 @@ void	free_tab(char **tab);
 void	print_cmds(t_cmd *cmd);
 char	*split_path(char **paths, char *cmd);
 char	*find_path(char	**envp, char *cmd);
-void free_cmds(t_cmd *head);
+void	free_cmds(t_cmd *head);
 
 #endif
