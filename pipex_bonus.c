@@ -12,7 +12,7 @@
 
 #include "pipex.h"
 
-void free_cmds(t_cmd *head)
+void	free_cmds(t_cmd *head)
 {
 	t_cmd	*current;
 	t_cmd	*next;
@@ -30,7 +30,7 @@ void free_cmds(t_cmd *head)
 				i++;
 			}
 		}
-			free(current->av);
+		free(current->av);
 		if (current->path)
 			free(current->path);
 		next = current->next;
@@ -41,7 +41,7 @@ void free_cmds(t_cmd *head)
 
 char	*split_path(char **paths, char *cmd)
 {
-	int	j;
+	int		j;
 	char	*full_path;
 	char	*cmd_path;
 
@@ -70,12 +70,11 @@ char	*split_path(char **paths, char *cmd)
 
 char	*find_path(char	**envp, char *cmd)
 {
-	int	i;
+	int		i;
 	char	**paths;
 
 	i = 0;
 	paths = NULL;
-
 	while (envp[i])
 	{
 		if (ft_strnstr(envp[i], "PATH=", 5))
@@ -90,49 +89,47 @@ char	*find_path(char	**envp, char *cmd)
 	return (split_path(paths, cmd));
 }
 
+void	cmd_add_back(t_cmd **lst, t_cmd *new)
+{
+	t_cmd	*last;
+
+	if (!lst || !new)
+		return ;
+	if (*lst)
+	{
+		last = *lst;
+		while (last->next)
+			last = last->next;
+		last->next = new;
+	}
+	else
+		*lst = new;
+}
+
 t_cmd	*create_cmds(int ac, char **av, char **envp)
 {
-	int	i;
-	t_cmd	*new_cmd;
+	int		i;
 	t_cmd	*head;
-	t_cmd	*current;
+	t_cmd	*new_cmd;
 
 	new_cmd = NULL;
 	head = NULL;
-	current = NULL;
 	i = 2;
-	while(i < (ac - 1))
+	while (i < (ac - 1))
 	{
 		new_cmd = malloc(sizeof(t_cmd));
 		if (!new_cmd)
 			return (NULL);
 		new_cmd->av = ft_split(av[i], ' ');
 		if (new_cmd->av && new_cmd->av[0])
-		{
 			new_cmd->path = find_path(envp, new_cmd->av[0]);
-			// printf("%s\n", new_cmd->path);
-		}
 		else
 			new_cmd->path = NULL;
 		new_cmd->next = NULL;
-		if (!head)
-			head = new_cmd;
-		else
-			current->next = new_cmd;
-		current = new_cmd;
+		cmd_add_back(&head, new_cmd);
 		i++;
 	}
-	return(head);
-}
-
-void	print_cmds(t_cmd *cmd)
-{
-	while(cmd != NULL)
-	{
-		ft_printf("\n%s\n", cmd->av[0]);
-		ft_printf("%s\n", cmd->path);
-		cmd = cmd->next;
-	}
+	return (head);
 }
 
 void	ft_error(char *str, t_cmd *head, int exit_code)
@@ -143,11 +140,8 @@ void	ft_error(char *str, t_cmd *head, int exit_code)
 	exit(exit_code);
 }
 
-void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe, t_cmd	*head)
+void	open_infile(char **av, t_cmd *cmd, t_cmd *head)
 {
-	// t_cmd	*head;
-
-	head = cmd;
 	cmd->infile = open(av[1], O_RDONLY);
 	if (cmd->infile < 0)
 	{
@@ -156,6 +150,11 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe, t_cmd	*head)
 		if (cmd->infile < 0)
 			ft_error("open /dev/null", head, 1);
 	}
+}
+
+void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe, t_cmd	*head)
+{
+	open_infile(av, cmd, head);
 	if (pipe(next_pipe) < 0)
 		ft_error("pipe", head, 1);
 	cmd->pid = fork();
@@ -179,9 +178,6 @@ void	first_cmd(char **av, char **envp, t_cmd *cmd, int *next_pipe, t_cmd	*head)
 
 void	middle_cmd(char **envp, t_cmd *cmd, int *prev_pipe, int *next_pipe, t_cmd	*head)
 {
-	// t_cmd	*head;
-
-	head = cmd;
 	if (pipe(next_pipe) < 0)
 		ft_error("pipe", head, 1);
 	cmd->pid = fork();
@@ -206,19 +202,22 @@ void	middle_cmd(char **envp, t_cmd *cmd, int *prev_pipe, int *next_pipe, t_cmd	*
 	close(next_pipe[1]);
 }
 
-void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe, t_cmd	*head)
+void	open_outfile(int ac, char **av, t_cmd *cmd, t_cmd *head, int *file_error)
 {
-	// t_cmd	*head;
-
-	head = cmd;
 	cmd->outfile = open(av[ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (cmd->outfile < 0)
 	{
 		perror(av[ac - 1]);
-		cmd->outfile = open("/dev/null", O_RDONLY);
+		cmd->outfile = open("/dev/null", O_WRONLY);
 		if (cmd->outfile < 0)
 			ft_error("open /dev/null", head, 1);
+		*file_error = 1;
 	}
+}
+
+void	last_cmd(int ac, char **av, char **envp, t_cmd *cmd, int *prev_pipe, t_cmd	*head, int *file_error)
+{
+	open_outfile(ac, av, cmd, head, file_error);
 	cmd->pid = fork();
 	if (cmd->pid < 0)
 		ft_error("fork", head, 1);
@@ -243,11 +242,14 @@ int	main(int ac, char **av, char **envp)
 {
 	t_cmd	*head;
 	t_cmd	*current;
-	int	prev_pipe[2];
-	int	next_pipe[2];
-	int status;
-	int exit_status = 0;
+	int		prev_pipe[2];
+	int		next_pipe[2];
+	int		status;
+	int		exit_status;
+	int		cmd_exit_code;
+	int		file_error;
 
+	file_error = 0;
 	if (ac < 5)
 	{
 		perror("Error : Number of args is invalid\n");
@@ -256,7 +258,6 @@ int	main(int ac, char **av, char **envp)
 	head = create_cmds(ac, av, envp);
 	current = head;
 	first_cmd(av, envp, current, next_pipe, head);
-
 	current = current->next;
 	prev_pipe[0] = next_pipe[0];
 	prev_pipe[1] = next_pipe[1];
@@ -268,12 +269,14 @@ int	main(int ac, char **av, char **envp)
 		prev_pipe[1] = next_pipe[1];
 		current = current->next;
 	}
-	if (current->next == NULL)
+	if (current && current->next == NULL)
 	{
-		last_cmd(ac, av, envp, current, prev_pipe, head);
+		last_cmd(ac, av, envp, current, prev_pipe, head, &file_error);
 		close(prev_pipe[0]);
 		close(prev_pipe[1]);
 	}
+	cmd_exit_code = 0;
+	exit_status = 0;
 	current = head;
 	while (current)
 	{
@@ -281,10 +284,25 @@ int	main(int ac, char **av, char **envp)
 		{
 			waitpid(current->pid, &status, 0);
 			if (WIFEXITED(status))
-				exit_status = WEXITSTATUS(status);
+			{
+				cmd_exit_code = WEXITSTATUS(status);
+				exit_status = cmd_exit_code;
+			}
 		}
 		current = current->next;
 	}
+	if (file_error)
+		exit_status = 1;
 	free_cmds(head);
-	return(exit_status);
+	return (exit_status);
 }
+
+// void	print_cmds(t_cmd *cmd)
+// {
+// 	while(cmd != NULL)
+// 	{
+// 		ft_printf("\n%s\n", cmd->av[0]);
+// 		ft_printf("%s\n", cmd->path);
+// 		cmd = cmd->next;
+// 	}
+// }
