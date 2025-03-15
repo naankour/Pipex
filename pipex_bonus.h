@@ -1,17 +1,17 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   pipex.h                                            :+:      :+:    :+:   */
+/*   pipex_bonus.h                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: naankour <naankour@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/03/15 15:16:44 by naankour          #+#    #+#             */
-/*   Updated: 2025/03/15 15:16:44 by naankour         ###   ########.fr       */
+/*   Created: 2025/03/15 15:19:21 by naankour          #+#    #+#             */
+/*   Updated: 2025/03/15 15:19:21 by naankour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef PIPEX_H
-# define PIPEX_H
+#ifndef PIPEX_BONUS_H
+# define PIPEX_BONUS_H
 
 # include "library/libft/libft.h"
 # include <sys/wait.h>
@@ -52,6 +52,7 @@ void	open_infile(t_pipex *pipex, t_cmd *cmd);
 void	open_outfile(t_pipex *pipex, t_cmd *cmd);
 //COMMANDS
 void	first_cmd(t_pipex *pipex, t_cmd *cmd);
+void	middle_cmd(t_pipex *pipex, t_cmd *cmd);
 void	last_cmd(t_pipex *pipex, t_cmd *cmd);
 
 #endif
