@@ -73,17 +73,56 @@ static int	ft_wait(t_pipex *pipex)
 	return (exit_status);
 }
 
+void	init_pipex_here_doc(int ac, char **av, char **envp, t_pipex *pipex)
+{
+	char	*line;
+	int		temp_fd;
+	pipex->ac = ac;
+	pipex->av = av;
+	pipex->envp = envp;
+	pipex->file_error = 0;
+	pipex->prev_pipe[0] = -1;
+	pipex->prev_pipe[1] = -1;
+	pipex->next_pipe[0] = -1;
+	pipex->next_pipe[1] = -1;
+
+	temp_fd = open(av[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (temp_fd < 0)
+		ft_error("Error: Failed to create temporary file\n", NULL, 1);
+	while (1)
+	{
+		write(1, "heredoc>", 9);
+		line = get_next_line(STDIN_FILENO);
+		if (!line)
+		{
+			free(line);
+			break;
+		}
+		write(temp_fd, line, ft_strlen(line));
+		free(line);
+	}
+	close(temp_fd);
+	pipex->head = create_cmds(ac, av + 1, envp);
+	// pipex->infile = open(av[5], O_RDONLY);
+	// if (pipex->infile < 0)
+	// 	ft_error("Error: Failed to read temporary file\n", pipex->head, 1);
+}
+
 int	main(int ac, char **av, char **envp)
 {
 	t_pipex	pipex;
 	int		exit_status;
 
 	if (ac < 5)
+		ft_error("Error: Invalid number of arguments\n", NULL, 1);
+	if (ft_strcmp(av[1], "here_doc") == 0)
 	{
-		perror("Error : Number of args is invalid\n");
-		exit(1);
+		if(ac < 6)
+			ft_error("Error: Invalid number of arguments for here_doc\n", NULL, 1);
+		init_pipex_here_doc(ac, av, envp, &pipex);
 	}
-	init_pipex(ac, av, envp, &pipex);
+	else
+		init_pipex(ac, av, envp, &pipex);
 	execute_commands(&pipex);
 	exit_status = ft_wait(&pipex);
 	free_cmds(pipex.head);
