@@ -14,7 +14,8 @@
 
 void	first_cmd(t_pipex *pipex, t_cmd *cmd)
 {
-	open_infile(pipex, cmd);
+	if (!pipex->here_doc)
+		open_infile(pipex, cmd);
 	if (pipe(pipex->next_pipe) < 0)
 		ft_error("pipe", pipex->head, 1);
 	cmd->pid = fork();
@@ -83,3 +84,4 @@ void	last_cmd(t_pipex *pipex, t_cmd *cmd)
 	close(pipex->prev_pipe[0]);
 	close(pipex->prev_pipe[1]);
 }
+

@@ -26,8 +26,14 @@ void	open_infile(t_pipex *pipex, t_cmd *cmd)
 
 void	open_outfile(t_pipex *pipex, t_cmd *cmd)
 {
-	cmd->outfile = open(pipex->av[pipex->ac - 1], O_WRONLY
-			| O_CREAT | O_TRUNC, 0644);
+	int	flags;
+
+	flags = O_WRONLY | O_CREAT;
+	if (pipex->here_doc)
+		flags |= O_APPEND;
+	else
+		flags |= O_TRUNC;
+	cmd->outfile = open(pipex->av[pipex->ac - 1], flags, 0644);
 	if (cmd->outfile < 0)
 	{
 		perror(pipex->av[pipex->ac - 1]);
@@ -37,3 +43,4 @@ void	open_outfile(t_pipex *pipex, t_cmd *cmd)
 		pipex->file_error = 1;
 	}
 }
+

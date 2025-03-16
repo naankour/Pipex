@@ -17,7 +17,7 @@ static void	init_pipex(int ac, char **av, char **envp, t_pipex *pipex)
 	pipex->ac = ac;
 	pipex->av = av;
 	pipex->envp = envp;
-	pipex->head = create_cmds(ac, av, envp);
+	pipex->head = create_cmds(ac, av, envp, 2);
 	pipex->file_error = 0;
 	pipex->prev_pipe[0] = -1;
 	pipex->prev_pipe[1] = -1;

@@ -46,7 +46,7 @@ void	free_cmds(t_cmd *head);
 char	*split_path(char **paths, char *cmd);
 char	*find_path(char	**envp, char *cmd);
 void	cmd_add_back(t_cmd **lst, t_cmd *new);
-t_cmd	*create_cmds(int ac, char **av, char **envp);
+t_cmd	*create_cmds(int ac, char **av, char **envp, int start_index);
 //FILES
 void	open_infile(t_pipex *pipex, t_cmd *cmd);
 void	open_outfile(t_pipex *pipex, t_cmd *cmd);

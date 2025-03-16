@@ -79,14 +79,14 @@ void	cmd_add_back(t_cmd **lst, t_cmd *new)
 		*lst = new;
 }
 
-t_cmd	*create_cmds(int ac, char **av, char **envp)
+t_cmd	*create_cmds(int ac, char **av, char **envp, int start_index)
 {
 	int		i;
 	t_cmd	*head;
 	t_cmd	*new_cmd;
 
 	head = NULL;
-	i = 2;
+	i = start_index;
 	while (i < (ac - 1))
 	{
 		new_cmd = malloc(sizeof(t_cmd));
@@ -103,3 +103,4 @@ t_cmd	*create_cmds(int ac, char **av, char **envp)
 	}
 	return (head);
 }
+
