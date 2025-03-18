@@ -78,6 +78,6 @@ int	main(int ac, char **av, char **envp)
 		free_cmds(pipex.head);
 		return (exit_status);
 	}
-	perror("Error : Number of args is invalid\n");
+	ft_printf("Error : Number of args is invalid\n");
 	exit(1);
 }

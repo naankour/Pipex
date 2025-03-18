@@ -6,7 +6,7 @@
 /*   By: naankour <naankour@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/26 09:49:25 by naankour          #+#    #+#             */
-/*   Updated: 2025/02/12 17:53:27 by naankour         ###   ########.fr       */
+/*   Updated: 2025/03/17 11:30:22 by naankour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -108,7 +108,7 @@ char	*ft_update_buffer(char *buffer)
 	i = 0;
 	while (buffer[i] != '\n' && buffer[i] != '\0')
 		i++;
-	if (buffer[i] == '\0')
+	if (buffer[i] == '\0' || buffer[i + 1] == '\0')
 	{
 		free (buffer);
 		return (NULL);

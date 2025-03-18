@@ -84,4 +84,3 @@ void	last_cmd(t_pipex *pipex, t_cmd *cmd)
 	close(pipex->prev_pipe[0]);
 	close(pipex->prev_pipe[1]);
 }
-

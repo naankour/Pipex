@@ -43,4 +43,3 @@ void	open_outfile(t_pipex *pipex, t_cmd *cmd)
 		pipex->file_error = 1;
 	}
 }
-

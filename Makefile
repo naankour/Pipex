@@ -31,7 +31,7 @@ $(LIBFT):
 	make -C library/libft
 
 bonus: $(NAME_BONUS)
-		mv $(NAME_BONUS) $(NAME)
+		# mv $(NAME_BONUS) $(NAME)
 
 .c.o:
 	$(CC) $(FLAGS) -c $< -o $@

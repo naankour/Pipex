@@ -36,28 +36,27 @@ typedef struct s_pipex
 	int		prev_pipe[2];
 	int		next_pipe[2];
 	int		file_error;
-	int 	here_doc;
+	int		here_doc;
 }					t_pipex;
 
+//ERROR
 void	ft_error(char *str, t_cmd *head, int exit_code);
 //FREE
 void	free_tab(char **tab);
 void	free_cmds(t_cmd *head);
+//FILES
+void	open_infile(t_pipex *pipex, t_cmd *cmd);
+void	open_outfile(t_pipex *pipex, t_cmd *cmd);
+//COMMANDS
+void	first_cmd(t_pipex *pipex, t_cmd *cmd);
+void	middle_cmd(t_pipex *pipex, t_cmd *cmd);
+void	last_cmd(t_pipex *pipex, t_cmd *cmd);
 //PATH
 char	*split_path(char **paths, char *cmd);
 char	*find_path(char	**envp, char *cmd);
 void	cmd_add_back(t_cmd **lst, t_cmd *new);
 t_cmd	*create_cmds(int ac, char **av, char **envp, int start_index);
+int		ft_wait(t_pipex *pipex);
 void	execute_commands(t_pipex *pipex);
-// void	execute_commands_here_doc(t_pipex *pipex);
-//FILES
-void	open_infile(t_pipex *pipex, t_cmd *cmd);
-void	open_outfile(t_pipex *pipex, t_cmd *cmd);
-// void	open_outfile_heredoc(t_pipex *pipex, t_cmd *cmd);
-//COMMANDS
-void	first_cmd(t_pipex *pipex, t_cmd *cmd);
-void	middle_cmd(t_pipex *pipex, t_cmd *cmd);
-void	last_cmd(t_pipex *pipex, t_cmd *cmd);
-// void	last_cmd_here_doc(t_pipex *pipex, t_cmd *cmd);
 
 #endif

@@ -104,3 +104,25 @@ t_cmd	*create_cmds(int ac, char **av, char **envp, int start_index)
 	return (head);
 }
 
+int	ft_wait(t_pipex *pipex)
+{
+	t_cmd	*cmd;
+	int		status;
+	int		exit_status;
+
+	exit_status = 0;
+	cmd = pipex->head;
+	while (cmd)
+	{
+		if (cmd->pid > 0)
+		{
+			waitpid(cmd->pid, &status, 0);
+			if (WIFEXITED(status))
+				exit_status = WEXITSTATUS(status);
+		}
+		cmd = cmd->next;
+	}
+	if (pipex->file_error)
+		exit_status = 1;
+	return (exit_status);
+}
